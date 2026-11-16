@@ -1,0 +1,177 @@
+openapi: 3.0.3
+info:
+  title: Salud Activa Personal Health API
+  version: 1.0.0
+  description: Authentication and personal profile endpoints compatible with the Salud Activa Android app.
+servers:
+  - url: http://localhost:3005
+    description: Local service
+paths:
+  /health/live:
+    get:
+      operationId: getLiveness
+      summary: Check whether the process is running
+      responses:
+        '200':
+          description: Process is alive
+  /health/ready:
+    get:
+      operationId: getReadiness
+      summary: Check whether MongoDB is available
+      responses:
+        '200':
+          description: Service and database are ready
+        '503':
+          description: Database is unavailable
+  /api/auth/register:
+    post:
+      operationId: registerUser
+      summary: Register a Salud Activa user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nombre, email, contrasena]
+              properties:
+                nombre:
+                  type: string
+                  maxLength: 120
+                email:
+                  type: string
+                  format: email
+                  maxLength: 254
+                telefono:
+                  type: string
+                  maxLength: 30
+                contrasena:
+                  type: string
+                  minLength: 1
+      responses:
+        '201':
+          description: User created and authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Invalid registration data
+        '409':
+          description: Email is already registered
+  /api/auth/login:
+    post:
+      operationId: loginUser
+      summary: Authenticate a user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, contrasena]
+              properties:
+                email:
+                  type: string
+                  format: email
+                contrasena:
+                  type: string
+      responses:
+        '200':
+          description: User authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Missing credentials
+        '401':
+          description: Email or password is incorrect
+  /api/auth/profile:
+    get:
+      operationId: getProfile
+      summary: Get the authenticated user's profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileUser'
+        '401':
+          description: Missing, invalid, or expired token
+    put:
+      operationId: updateProfile
+      summary: Update the authenticated user's name and phone
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nombre]
+              properties:
+                nombre:
+                  type: string
+                  maxLength: 120
+                telefono:
+                  type: string
+                  maxLength: 30
+      responses:
+        '200':
+          description: Updated user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileUser'
+        '400':
+          description: Invalid profile values
+        '401':
+          description: Missing, invalid, or expired token
+        '404':
+          description: User no longer exists
+components:
+  schemas:
+    ProfileUser:
+      type: object
+      required: [id, _id, nombre, email, telefono]
+      properties:
+        id:
+          type: string
+        _id:
+          type: string
+        nombre:
+          type: string
+        email:
+          type: string
+          format: email
+        telefono:
+          type: string
+    AuthResponse:
+      type: object
+      required: [mensaje, usuario, token]
+      properties:
+        mensaje:
+          type: string
+          example: OK
+        usuario:
+          $ref: '#/components/schemas/ProfileUser'
+        token:
+          type: string
+    ErrorResponse:
+      type: object
+      required: [error, mensaje]
+      properties:
+        error:
+          type: string
+        mensaje:
+          type: string
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
